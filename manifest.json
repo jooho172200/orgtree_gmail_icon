@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "OrgTree",
+  "version": "1.0",
+  "description": "조직도로 수신인 이메일 자동 삽입",
+  "icons": {
+    "16": "icons/icon_16.png",
+    "48": "icons/icon_48.png",
+    "128": "icons/icon_128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["src/content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": "icons/icon_48.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/icon_ex.svg"],
+      "matches": ["https://mail.google.com/*"]
+    }
+  ]
+}
