@@ -50,6 +50,7 @@ function addOrgTreeButton(toolbar) {
 
     // 버튼 클릭 이벤트 추가
     button.addEventListener('click', () => {
+        console.log('버튼 클릭됨'); // 클릭 이벤트 확인용
         chrome.runtime.sendMessage({ action: 'openOrgTree' });
     });
 
@@ -64,7 +65,24 @@ function addOrgTreeButton(toolbar) {
 
     // 툴바에 버튼 추가
     toolbar.appendChild(button);
+
 }
 
-// 함수 실행
+
+// 이메일 삽입 요청 처리
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "insertEmail") {
+        // Gmail 작성 폼의 수신인 필드 탐색
+        const recipientField = document.querySelector('textarea[name="to"]'); // DOM 변경될 수 도 있음
+        if (recipientField) {
+            // 이메일 추가
+            recipientField.value += (recipientField.value ? ', ' : '') + request.email;
+
+            // Gmail 동적 업데이트 반영을 위해 이벤트 발생
+            recipientField.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+    }
+});
+
+//아이콘 추가 함수 실행
 addButtonToToolbar();

@@ -11,23 +11,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const popupWidth = 400;
         const popupHeight = 600;
 
-        // 화면 중앙에 팝업 위치시키기
-        const left = Math.round((screen.width - popupWidth) / 2);
-        const top = Math.round((screen.height - popupHeight) / 2);
 
         // 팝업 창 생성
         chrome.windows.create({
-            url: 'src/popup/popup.html',
+            url: chrome.runtime.getURL('src/popup/popup.html'),
             type: 'popup',
             width: popupWidth,
             height: popupHeight,
-            left: left,
-            top: top,
             focused: true
         }, (window) => {
             // 팝업 창 생성 후 처리
             if (chrome.runtime.lastError) {
-                console.error('팝업 창 생성 실패:', chrome.runtime.lastError);
+                console.error('팝업 창 생성 실패:', chrome.runtime.lastError.message);
                 return;
             }
             console.log('조직도 팝업이 열렸습니다.');

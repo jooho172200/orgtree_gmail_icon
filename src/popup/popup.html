@@ -1,28 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>조직도</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #f9f9f9;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
+        body { font-family: Arial, sans-serif; padding: 10px; }
+        .employee { padding: 10px; border: 1px solid #ccc; margin: 5px 0; cursor: pointer; }
+        .employee:hover { background-color: #f9f9f9; }
     </style>
 </head>
 <body>
-<iframe src="https://기존조직도앱.com" title="조직도"></iframe>
+<h1>조직도</h1>
+<div id="employeeList"></div>
+<script src="popup.js"></script>
 </body>
 </html>
