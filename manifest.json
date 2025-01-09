@@ -12,10 +12,12 @@
     "activeTab",
     "scripting",
     "storage",
-    "windows"
+    "windows",
+    "tabs"
   ],
   "host_permissions": [
-    "https://mail.google.com/*"
+    "https://mail.google.com/*",
+    "http://localhost:2734/rest/*"
   ],
   "background": {
     "service_worker": "src/background.js"
