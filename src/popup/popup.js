@@ -11,10 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.className = 'employee';
                 item.addEventListener('click', () => {
                     console.log(`선택한 이메일: ${emp.email}`); // 선택한 이메일 확인용
-                    chrome.runtime.sendMessage({ action: 'insertEmail', email: emp.email });
+                    chrome.runtime.sendMessage({ action: 'insertEmailToPopup', email: emp.email });
+                    //chrome.runtime.sendMessage({ action: 'closePopup' }); // 팝업 창 닫기 요청
                 });
                 list.appendChild(item);
             });
         })
         .catch(error => console.error('데이터 로드 실패', error));
 });
+

@@ -38,39 +38,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     // 이메일 삽입 요청 처리
-    if (request.action === "insertEmail") {
+    if (request.action === "insertEmailToPopup") {
         console.log('이메일 삽입 요청 받음:', request.email);
 
-        // 현재 활성화된 탭 찾기
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            if (!tabs[0]) {
-                console.error('활성 탭을 찾을 수 없습니다.');
-                sendResponse({ error: '활성 탭을 찾을 수 없습니다.' });
+        // 현재 Gmail 메일쓰기 탭 찾기
+        chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+
+            if (tabs.length === 0) {
+                console.error('Gmail 메일쓰기 탭을 찾을 수 없습니다.');
+                sendResponse({ error: 'Gmail 메일쓰기 탭을 찾을 수 없습니다.' });
                 return;
             }
 
-            console.log('활성 탭 ID:', tabs[0].id);
+            const gmailTabId = tabs[0].id;
+            console.log('Gmail 메일쓰기 탭 ID:', gmailTabId);
 
-            // content script로 메시지 전송
+            // Gmail 메일쓰기 탭에 메시지 전송
             chrome.tabs.sendMessage(
-                tabs[0].id,
+                gmailTabId,
                 {
                     action: "insertEmail",
                     email: request.email
                 },
                 (response) => {
-                    console.log('content script 응답:', response);
                     if (chrome.runtime.lastError) {
-                        console.error('컨텐츠 스크립트 메시지 전송 실패:', chrome.runtime.lastError);
+                        console.error('메시지 전송 중 오류:', chrome.runtime.lastError.message);
                         sendResponse({ error: chrome.runtime.lastError.message });
-                    } else {
-                        sendResponse(response);
+                        return;
                     }
+                    console.log('Gmail에 이메일 삽입 성공:', response);
+                    sendResponse({ success: true });
+
                 }
             );
         });
-
         return true; // 비동기 응답을 위해 필요
     }
-});
 
+    // 팝업 창 닫기 요청 처리
+    if (request.action === "closePopup" && popupWindowId !== null) {
+        chrome.windows.remove(popupWindowId, () => {
+            console.log("팝업 창이 닫혔습니다.");
+            popupWindowId = null;
+        });
+    }
+
+});//chrome.runtime.onMessage.addListener

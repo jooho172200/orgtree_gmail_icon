@@ -49,7 +49,7 @@ function addOrgTreeButton(toolbar) {
     toolbar.appendChild(button);
 }
 
-// 이메일 삽입 요청 처리
+// 이메일 자동 삽입 처리
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "insertEmail") {
         try {
@@ -64,18 +64,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     document.querySelector('input[role="combobox"]') ||
                     document.querySelector('.aeF input');
 
+                // 이메일 자동완성 팝업 제거
+                const element = document.querySelector('.afC.mS5Pff');
+                if (element) {
+                    element.remove();
+                }
+
                 if (recipientField) {
                     const currentValue = recipientField.value;
                     const newEmail = request.email;
 
                     // 이메일이 이미 있는지 확인
-                    if (!currentValue.includes(newEmail)) {
+                    const emailList = currentValue.split(',').map(email => email.trim());
+                    if (!emailList.includes(newEmail)) {
                         recipientField.value = currentValue + (currentValue ? ', ' : '') + newEmail;
 
-                        // 이벤트 발생
+                        // 이벤트 발생 (keydown 제거)
                         recipientField.dispatchEvent(new Event('input', { bubbles: true }));
                         recipientField.dispatchEvent(new Event('change', { bubbles: true }));
-                        recipientField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+                        // 포커스 제거
+                        recipientField.blur();
 
                         console.log('이메일 삽입 성공:', newEmail);
                     }
@@ -97,6 +106,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true;
 });
+
 
 // 초기화
 addButtonToToolbar();
