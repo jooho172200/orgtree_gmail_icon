@@ -11,15 +11,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // 조직도 팝업 열기 요청 처리
     if (request.action === "openOrgTree") {
+        // 이전 팝업 창이 열려있으면 닫기
         if (popupWindowId !== null) {
             chrome.windows.remove(popupWindowId, () => {
                 console.log("이전 팝업 창 닫음");
             });
         }
 
+        //팝업 크기
         const popupWidth = 400;
         const popupHeight = 600;
 
+        // 팝업 창 열기
         chrome.windows.create({
             url: chrome.runtime.getURL('src/popup/popup.html'),
             type: 'popup',
@@ -41,7 +44,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "insertEmailToPopup") {
         console.log('이메일 삽입 요청 받음:', request.email);
 
-        // 현재 Gmail 메일쓰기 탭 찾기
+        // 현재 지메일 메일 작성폼 찾기
         chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
 
             if (tabs.length === 0) {
@@ -53,7 +56,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const gmailTabId = tabs[0].id;
             console.log('Gmail 메일쓰기 탭 ID:', gmailTabId);
 
-            // Gmail 메일쓰기 탭에 메시지 전송
+            // 지메일 폼으로 이메일 삽입 요청
             chrome.tabs.sendMessage(
                 gmailTabId,
                 {
@@ -83,4 +86,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
     }
 
-});//chrome.runtime.onMessage.addListener
+});
