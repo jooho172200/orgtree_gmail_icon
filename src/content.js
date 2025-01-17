@@ -59,68 +59,82 @@ function addOrgTreeButton(toolbar) {
 }
 
 // 이메일 자동 삽입 처리
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//     // 이메일 삽입 액션인 경우 실행
+//     if (request.action === "insertEmail") {
+//         try {
+//             // 즉시 응답을 보내서 연결이 끊어지지 않도록 함
+//             sendResponse({ received: true });
+//
+//             // 이메일 삽입 처리 최대 횟수 10회로 지정 ->
+//             const maxAttempts = 10;
+//             let attempts = 0;
+//
+//             // 이메일 삽입 함수, 지메일 작성 폼의 수신인 필드를 감지하여 이메일 삽입
+//             const insertEmail = () => {
+//                 const recipientField = document.querySelector('input[role="combobox"].u2.agP.aFw') ||
+//                     document.querySelector('input[role="combobox"]') ||
+//                     document.querySelector('.aeF input');
+//
+//                 // 이메일 자동 추천 팝업 제거, 조직도에서 이메일 삽입 시, 자동완성 창이 화면에 남아있는 버그 해셜 위함
+//                 const autoRecommend = document.querySelector('.afC.mS5Pff'); // 이메일 자동완성 팝업 DOM
+//                 if (autoRecommend) {
+//                     autoRecommend.remove();
+//                 }
+//
+//                 // 수신인 필드가 있는 경우 이메일 삽입
+//                 if (recipientField) {
+//                     const currentValue = recipientField.value;
+//                     const newEmail = request.email;
+//
+//                     // 이메일이 이미 있는지 확인
+//                     const emailList = currentValue.split(',').map(email => email.trim());
+//                     if (!emailList.includes(newEmail)) {
+//                         recipientField.value = currentValue + (currentValue ? ', ' : '') + newEmail;
+//
+//                         // 지메일의 이벤트 리스너가 이벤트를 받아서 이메일을 삽입함
+//                         recipientField.dispatchEvent(new Event('input', { bubbles: true }));    //필드에 값이 입력됨을 알림
+//                         recipientField.dispatchEvent(new Event('change', { bubbles: true }));   //필드 값이 변경됨을 알림
+//
+//                         // 포커스 제거, 사용자가 추가로 입력을 하거나 다른 UI 조작 시 방해 방지
+//                         recipientField.blur();
+//
+//                         // 이메일 삽입 성공 로그 출력
+//                         console.log('이메일 삽입 성공:', newEmail);
+//                     }
+//                     return true;
+//                 }
+//
+//                 // 수신인 필드를 찾을 수 없어 여러 번 클릭하여 이메일 삽입을 시도할 때
+//                 if (++attempts < maxAttempts) {
+//                     setTimeout(insertEmail, 500); // 500ms 후 재시도
+//                 } else {
+//                     console.error('수신인 필드를 찾을 수 없습니다.');
+//                 }
+//                 return false;
+//             };
+//
+//             // 이메일 삽입 함수 호출
+//             insertEmail();
+//         } catch (error) {
+//             console.error('이메일 삽입 중 오류:', error);
+//         }
+//     }
+//     return true;
+// });
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // 이메일 삽입 액션인 경우 실행
     if (request.action === "insertEmail") {
-        try {
-            // 즉시 응답을 보내서 연결이 끊어지지 않도록 함
-            sendResponse({ received: true });
-
-            // 이메일 삽입 처리 최대 횟수 10회로 지정 ->
-            const maxAttempts = 10;
-            let attempts = 0;
-
-            // 이메일 삽입 함수, 지메일 작성 폼의 수신인 필드를 감지하여 이메일 삽입
-            const insertEmail = () => {
-                const recipientField = document.querySelector('input[role="combobox"].u2.agP.aFw') ||
-                    document.querySelector('input[role="combobox"]') ||
-                    document.querySelector('.aeF input');
-
-                // 이메일 자동 추천 팝업 제거, 조직도에서 이메일 삽입 시, 자동완성 창이 화면에 남아있는 버그 해셜 위함
-                const autoRecommend = document.querySelector('.afC.mS5Pff'); // 이메일 자동완성 팝업 DOM
-                if (autoRecommend) {
-                    autoRecommend.remove();
-                }
-
-                // 수신인 필드가 있는 경우 이메일 삽입
-                if (recipientField) {
-                    const currentValue = recipientField.value;
-                    const newEmail = request.email;
-
-                    // 이메일이 이미 있는지 확인
-                    const emailList = currentValue.split(',').map(email => email.trim());
-                    if (!emailList.includes(newEmail)) {
-                        recipientField.value = currentValue + (currentValue ? ', ' : '') + newEmail;
-
-                        // 지메일의 이벤트 리스너가 이벤트를 받아서 이메일을 삽입함
-                        recipientField.dispatchEvent(new Event('input', { bubbles: true }));    //필드에 값이 입력됨을 알림
-                        recipientField.dispatchEvent(new Event('change', { bubbles: true }));   //필드 값이 변경됨을 알림
-
-                        // 포커스 제거, 사용자가 추가로 입력을 하거나 다른 UI 조작 시 방해 방지
-                        recipientField.blur();
-
-                        // 이메일 삽입 성공 로그 출력
-                        console.log('이메일 삽입 성공:', newEmail);
-                    }
-                    return true;
-                }
-
-                // 수신인 필드를 찾을 수 없어 여러 번 클릭하여 이메일 삽입을 시도할 때
-                if (++attempts < maxAttempts) {
-                    setTimeout(insertEmail, 500); // 500ms 후 재시도
-                } else {
-                    console.error('수신인 필드를 찾을 수 없습니다.');
-                }
-                return false;
-            };
-
-            // 이메일 삽입 함수 호출
-            insertEmail();
-        } catch (error) {
-            console.error('이메일 삽입 중 오류:', error);
+        const recipientField = document.querySelector('input[role="combobox"].u2.agP.aFw') ||
+                     document.querySelector('input[role="combobox"]') ||
+                     document.querySelector('.aeF input');
+        if (recipientField) {
+            recipientField.value += `${request.email}, `;
+            sendResponse({ success: true });
+        } else {
+            sendResponse({ success: false, error: "수신인 칸을 찾을 수 없습니다." });
         }
     }
-    return true;
 });
 
 

@@ -17,7 +17,7 @@
   ],
   "host_permissions": [
     "https://mail.google.com/*",
-    "http://localhost:2734/rest/*"
+    "http://localhost:8090/rest/*"
   ],
   "background": {
     "service_worker": "src/background.js"

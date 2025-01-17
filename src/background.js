@@ -25,7 +25,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             console.warn('알 수 없는 액션:', request.action);
             break;
     }
-});//chrome.runtime.onMessage.addListener
+});
 
 //조직도 팝업을 여는 함수
 function handleOpenOrgTree() {
@@ -55,41 +55,62 @@ function handleOpenOrgTree() {
     });
 }
 
+
+
 // Gmail 메일쓰기 탭에 선택한 이메일을 삽입하는 함수
-function handleInsertEmailToPopup(request, sendResponse) {
-    console.log('이메일 삽입 요청 받음:', request.email);
+// function handleInsertEmailToPopup(request, sendResponse) {
+//     console.log('이메일 삽입 요청 받음:', request.email);
+//
+//     // Gmail 메일쓰기 탭을 찾기 위해 쿼리 실행
+//     chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+//         if (tabs.length === 0) {
+//             console.error('Gmail 메일쓰기 탭을 찾을 수 없습니다.');
+//             sendResponse({ error: 'Gmail 메일쓰기 탭을 찾을 수 없습니다.' });
+//             return;
+//         }
+//
+//         //첫 번째로 찾은 Gmail 메일쓰기 탭의 ID를 가져옴
+//         const gmailTabId = tabs[0].id;
+//         console.log('Gmail 메일쓰기 탭 ID:', gmailTabId);
+//
+//         // 찾은 Gmail 탭에 메시지를 전송하여 이메일 삽입 요청
+//         chrome.tabs.sendMessage(
+//             gmailTabId,
+//             {
+//                 action: "insertEmail",  //메일 삽입 액션
+//                 email: request.email    //삽입할 이메일 주소
+//             },
+//             (response) => {
+//                 if (chrome.runtime.lastError) {
+//                     console.error('메시지 전송 중 오류:', chrome.runtime.lastError.message);
+//                     sendResponse({ error: chrome.runtime.lastError.message });
+//                     return;
+//                 }
+//                 console.log('Gmail에 이메일 삽입 성공:', response);
+//                 sendResponse({ success: true });
+//             }
+//         );
+//     });
+// }
 
-    // Gmail 메일쓰기 탭을 찾기 위해 쿼리 실행
-    chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
-        if (tabs.length === 0) {
-            console.error('Gmail 메일쓰기 탭을 찾을 수 없습니다.');
-            sendResponse({ error: 'Gmail 메일쓰기 탭을 찾을 수 없습니다.' });
-            return;
-        }
-
-        //첫 번째로 찾은 Gmail 메일쓰기 탭의 ID를 가져옴
-        const gmailTabId = tabs[0].id;
-        console.log('Gmail 메일쓰기 탭 ID:', gmailTabId);
-
-        // 찾은 Gmail 탭에 메시지를 전송하여 이메일 삽입 요청
-        chrome.tabs.sendMessage(
-            gmailTabId,
-            {
-                action: "insertEmail",  //메일 삽입 액션
-                email: request.email    //삽입할 이메일 주소
-            },
-            (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error('메시지 전송 중 오류:', chrome.runtime.lastError.message);
-                    sendResponse({ error: chrome.runtime.lastError.message });
-                    return;
-                }
-                console.log('Gmail에 이메일 삽입 성공:', response);
-                sendResponse({ success: true });
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "insertEmail") {
+        chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+            if (tabs.length > 0) {
+                chrome.tabs.sendMessage(
+                    tabs[0].id,
+                    { action: "insertEmail", email: request.email },
+                    (response) => sendResponse({ success: true })
+                );
+            } else {
+                sendResponse({ success: false, error: "Gmail 창이 없습니다." });
             }
-        );
-    });
-}
+        });
+        return true; // 비동기 응답
+    }
+});
+
+
 
 // 선택 후 조직도 팝업 창을 닫는 함수
 function handleClosePopup() {
