@@ -13,11 +13,13 @@
     "scripting",
     "storage",
     "windows",
-    "tabs"
+    "tabs",
+    "identity"
   ],
   "host_permissions": [
+    "https://*.google.com/*",
     "https://mail.google.com/*",
-    "http://localhost:8090/rest/*"
+    "http://localhost:8090/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -37,5 +39,15 @@
       "resources": ["icons/icon_ex.svg", "src/popup/popup.html"],
       "matches": ["https://mail.google.com/*"]
     }
-  ]
+  ],
+  "oauth2": {
+    "client_id": "123584925681-5gdd590s9qp9evsu68j42jeou0of42ku.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/userinfo.email"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src http://localhost:8090/"
+  }
 }
