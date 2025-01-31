@@ -1,31 +1,131 @@
 let popupWindowId = null;
 
 // content script나 popup script으로부터의 메시지 처리
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('백그라운드에서 메시지 수신:', request);
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('백그라운드에서 메시지 수신:', message);
 
-    // 요청된 action에 따라 해당하는 처리 함수 호출
-    switch (request.action) {
-        case "openOrgTree":
-            // 조직도 팝업 열기 요청 처리
-            handleOpenOrgTree();
-            break;
+    if (message.action === "sendEmailData") {
+        console.log("Received data:", message.data);
 
-        case "insertEmailToPopup":
-            // 이메일 삽입 요청 처리
-            handleInsertEmailToPopup(request, sendResponse);
-            return true; // 비동기 응답을 위해 true 반환 (sendResponse가 비동기일 경우 필요)
+        // Gmail "쓰기" 미니 팝업 창 찾기
+        chrome.tabs.query({ url: "*://mail.google.com/*" }, (tabs) => {
+            if (tabs.length === 0) {
+                sendResponse({ success: false, error: "No Gmail tabs found" });
+                return;
+            }
 
-        case "closePopup":
-            // 조직도 팝업 닫기 요청 처리
-            handleClosePopup();
-            break;
-
-        default:
-            console.warn('알 수 없는 액션:', request.action);
-            break;
+            // Gmail 팝업 창에 데이터 삽입 요청
+            const gmailTab = tabs[0]; // 첫 번째 Gmail 탭 선택
+            chrome.scripting.executeScript(
+                {
+                    target: { tabId: gmailTab.id },
+                    func: insertEmailData,
+                    args: [message.data] // 전달할 데이터
+                },
+                (results) => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Error executing script:", chrome.runtime.lastError.message);
+                        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+                    } else {
+                        sendResponse({ success: true, result: results });
+                    }
+                }
+            );
+        });
+        // 비동기 응답을 처리하기 위해 true 반환
+        return true;
+    }else if(message.action === "openOrgTree"){//조직도 팝업 호출
+        handleOpenOrgTree();
+        return true;
+    }else{
+        console.warn("Unknown action:", request.action);
+        sendResponse({ success: false, error: "Unknown action" }); // 기본 응답
     }
+    return true;
 });//chrome.runtime.onMessage.addListener
+
+// Gmail DOM에 데이터를 삽입하는 함수
+function insertEmailData({ flagValue, UserList }) {
+    try {
+        // 자동완성 팝업 제거 함수
+        function removeAutoCompletePopup() {
+            const element = document.querySelector('.afC.mS5Pff');
+            if (element) {
+                element.remove();
+            }
+        }
+
+        // 각각의 필드가 DOM에 준비될 때까지 대기하는 함수
+        function waitForField(selector, timeout = 5000) {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
+
+                (function checkField() {
+                    const Field = document.querySelector(selector);
+                    if (Field) {
+                        resolve(Field); // 필드가 준비되면 반환
+                    } else if (Date.now() - startTime > timeout) {
+                        reject(new Error("Field not found within timeout"));
+                    } else {
+                        setTimeout(checkField, 100); // 100ms 간격으로 재확인
+                    }
+                })();
+            });
+        }
+
+        // 공통 필드 처리 함수
+        async function handleFieldInput(button, inputSelector, flagValue) {
+            removeAutoCompletePopup(); // 자동완성 팝업 제거
+            if(flagValue === 'CC'|| flagValue === 'BCC') {
+                button.click(); // 드롭다운 열기(참조, 숨은 참조)
+            }
+            try {
+                // 필드가 준비될 때까지 대기
+                const Field = await waitForField(inputSelector);
+
+                // 값 설정
+                Field.value = UserList;
+
+                // 값 변경 이벤트 트리거
+                Field.dispatchEvent(new Event("input", { bubbles: true }));
+                Field.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+
+                // 값 설정 후 자동완성 팝업 제거
+                removeAutoCompletePopup();
+
+                console.log(`${flagValue} data inserted:`, UserList);
+            } catch (error) {
+                console.error(`${flagValue} field not found!`, error);
+            }
+        }
+
+        // 수신자 필드 처리
+        if (flagValue == 'to') {
+            handleFieldInput('',
+                "input[aria-label='수신자']",
+                "TO"
+            );
+        }
+        // 참조인 필드 처리
+        else if (flagValue === 'cc') {
+            handleFieldInput(
+                document.querySelector("span[aria-label='참조 수신자 추가 ‪(Ctrl-Shift-C)‬']"),
+                "input[aria-label='참조 수신자']",
+                "CC"
+            );
+        }
+        // 숨은 참조 필드 처리
+        else if (flagValue === 'bcc') {
+            handleFieldInput(
+                document.querySelector("span[aria-label='숨은참조 수신자 추가 ‪(Ctrl-Shift-B)‬']"),
+                "input[aria-label='숨은참조 수신자']",
+                "BCC"
+            );
+        }
+    } catch (error) {
+        console.error("Error inserting recipient data:", error);
+    }
+}
 
 //조직도 팝업을 여는 함수
 function handleOpenOrgTree() {
@@ -34,10 +134,11 @@ function handleOpenOrgTree() {
             console.log("이전 팝업 창 닫음");
         });
     }
+    const popupWidth = 700;
+    const popupHeight = 500;
 
     // 새로운 팝업 창 생성
     chrome.windows.create({
-        //url: "https://cloudofficeorgtree.azurewebsites.net", // IntelliJ에서 실행 중인 JSP의 URL
         url: "http://localhost:8090", // IntelliJ에서 실행 중인 JSP의 URL
         type: 'popup', // 팝업 창으로 열기
         width: 800, // 원하는 팝업 창 너비
@@ -50,52 +151,6 @@ function handleOpenOrgTree() {
         }
         console.log('JSP 팝업이 열렸습니다. Window ID:', window.id);
     });
-
 }
 
-// Gmail 메일쓰기 탭에 선택한 이메일을 삽입하는 함수
-function handleInsertEmailToPopup(request, sendResponse) {
-    console.log('이메일 삽입 요청 받음:', request.email);
-
-    // Gmail 메일쓰기 탭을 찾기 위해 쿼리 실행
-    chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
-        if (tabs.length === 0) {
-            console.error('Gmail 메일쓰기 탭을 찾을 수 없습니다.');
-            sendResponse({ error: 'Gmail 메일쓰기 탭을 찾을 수 없습니다.' });
-            return;
-        }
-
-        //첫 번째로 찾은 Gmail 메일쓰기 탭의 ID를 가져옴
-        const gmailTabId = tabs[0].id;
-        console.log('Gmail 메일쓰기 탭 ID:', gmailTabId);
-
-        // 찾은 Gmail 탭에 메시지를 전송하여 이메일 삽입 요청
-        chrome.tabs.sendMessage(
-            gmailTabId,
-            {
-                action: "insertEmail",  //메일 삽입 액션
-                email: request.email    //삽입할 이메일 주소
-            },
-            (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error('메시지 전송 중 오류:', chrome.runtime.lastError.message);
-                    sendResponse({ error: chrome.runtime.lastError.message });
-                    return;
-                }
-                console.log('Gmail에 이메일 삽입 성공:', response);
-                sendResponse({ success: true });
-            }
-        );
-    });
-}
-
-// 선택 후 조직도 팝업 창을 닫는 함수
-function handleClosePopup() {
-    if (popupWindowId !== null) {
-        chrome.windows.remove(popupWindowId, () => {
-            console.log("팝업 창이 닫혔습니다.");
-            popupWindowId = null;
-        });
-    }
-}
 

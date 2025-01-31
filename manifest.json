@@ -31,22 +31,14 @@
     }
   ],
   "action": {
-    "default_popup": "src/popup/popup.html",
     "default_icon": "icons/icon_48.png"
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/icon_ex.svg", "src/popup/popup.html"],
+      "resources": ["icons/icon_ex.svg"],
       "matches": ["https://mail.google.com/*"]
     }
   ],
-  "oauth2": {
-    "client_id": "123584925681-5gdd590s9qp9evsu68j42jeou0of42ku.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/gmail.compose",
-      "https://www.googleapis.com/auth/userinfo.email"
-    ]
-  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; frame-src http://localhost:8090/"
   }
