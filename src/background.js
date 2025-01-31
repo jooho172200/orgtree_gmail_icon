@@ -5,8 +5,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('백그라운드에서 메시지 수신:', message);
 
     if (message.action === "sendEmailData") {
-        console.log("Received data:", message.data);
-
         // Gmail "쓰기" 미니 팝업 창 찾기
         chrome.tabs.query({ url: "*://mail.google.com/*" }, (tabs) => {
             if (tabs.length === 0) {
@@ -45,8 +43,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });//chrome.runtime.onMessage.addListener
 
 // Gmail DOM에 데이터를 삽입하는 함수
-function insertEmailData({ flagValue, UserList }) {
+function insertEmailData({ flagValue, userList =[], teamUserList =[]}) {
     try {
+        // teamUserList가 존재하면 기존 값 유지하면서 userList 추가
+        if (teamUserList.length > 0) {
+            const mergedList = [...new Set([...teamUserList, ...userList])]; // 중복 제거 후 병합
+            userList = mergedList;
+        }
+        console.log("최종 userList:", userList);
+
         // 자동완성 팝업 제거 함수
         function removeAutoCompletePopup() {
             const element = document.querySelector('.afC.mS5Pff');
@@ -83,9 +88,12 @@ function insertEmailData({ flagValue, UserList }) {
                 // 필드가 준비될 때까지 대기
                 const Field = await waitForField(inputSelector);
 
-                // 값 설정
-                Field.value = UserList;
+                // 기존 값 유지하면서 추가하기 위해 쉼표로 구분된 문자열로 변환
+                const existingValue = Field.value ? Field.value.split(",").map(s => s.trim()) : [];
+                const finalList = [...new Set([...existingValue, ...userList])].join(", "); // 기존값 + 새 값 병합 후 중복 제거
 
+                // 값 설정
+                Field.value = finalList;
                 // 값 변경 이벤트 트리거
                 Field.dispatchEvent(new Event("input", { bubbles: true }));
                 Field.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
@@ -93,7 +101,7 @@ function insertEmailData({ flagValue, UserList }) {
                 // 값 설정 후 자동완성 팝업 제거
                 removeAutoCompletePopup();
 
-                console.log(`${flagValue} data inserted:`, UserList);
+                console.log(`${flagValue} data inserted:`, finalList);
             } catch (error) {
                 console.error(`${flagValue} field not found!`, error);
             }
