@@ -4,7 +4,7 @@ let popupWindowId = null;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('백그라운드에서 메시지 수신:', message);
 
-    if (message.action === "sendEmailData") {
+    if (message.action === "sendEmailData" || message.action === "sendEmailDataUndo") {
         // Gmail "쓰기" 미니 팝업 창 찾기
         chrome.tabs.query({ url: "*://mail.google.com/*" }, (tabs) => {
             if (tabs.length === 0) {
@@ -30,10 +30,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
             );
         });
-        // 비동기 응답을 처리하기 위해 true 반환
         return true;
     }else if(message.action === "openOrgTree"){//조직도 팝업 호출
         handleOpenOrgTree();
+        sendResponse({ success: true});
         return true;
     }else{
         console.warn("Unknown action:", request.action);
@@ -43,15 +43,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });//chrome.runtime.onMessage.addListener
 
 // Gmail DOM에 데이터를 삽입하는 함수
-function insertEmailData({ flagValue, userList =[], teamUserList =[]}) {
+function insertEmailData(data) {
     try {
-        // teamUserList가 존재하면 기존 값 유지하면서 userList 추가
-        if (teamUserList.length > 0) {
-            const mergedList = [...new Set([...teamUserList, ...userList])]; // 중복 제거 후 병합
-            userList = mergedList;
+        // window.userList를 배열로 초기화
+        if (!Array.isArray(window.userList)) {
+            window.userList = [];
         }
-        console.log("최종 userList:", userList);
 
+        // data의 각 flag(to, cc, bcc)에 대해 이메일 리스트 처리
+        Object.keys(data).forEach(flag => {
+            const userList = data[flag];  // flag에 해당하는 이메일 리스트
+            console.log(`Processing ${flag}:`, userList);
+
+            // 이메일 리스트를 각각의 flag에 맞는 userList로 병합
+            let emailList = userList.map(user => user.email);  // 이메일 주소만 추출
+            console.log(`emailList:`, emailList);
+
+            // 각 flag에 맞는 필드를 처리
+            switch (flag) {
+                case 'to':
+                    handleFieldInput(null, "input[aria-label='수신자']", emailList, "TO");
+                    break;
+                case 'cc':
+                    handleFieldInput(
+                        document.querySelector("span[aria-label='참조 수신자 추가 ‪(Ctrl-Shift-C)‬']"),
+                        "input[aria-label='참조 수신자']",
+                        emailList,
+                        "CC",
+                    );
+                    break;
+                case 'bcc':
+                    handleFieldInput(
+                        document.querySelector("span[aria-label='숨은참조 수신자 추가 ‪(Ctrl-Shift-B)‬']"),
+                        "input[aria-label='숨은참조 수신자']",
+                        emailList,
+                        "BCC",
+                    );
+                    break;
+                case 'undo':
+                    undoFieldInput(); // undo 작업만 수행
+                    break;
+            }//switch
+        });
         // 자동완성 팝업 제거 함수
         function removeAutoCompletePopup() {
             const element = document.querySelector('.afC.mS5Pff');
@@ -78,62 +111,72 @@ function insertEmailData({ flagValue, userList =[], teamUserList =[]}) {
             });
         }
 
-        // 공통 필드 처리 함수
-        async function handleFieldInput(button, inputSelector, flagValue) {
-            removeAutoCompletePopup(); // 자동완성 팝업 제거
-            if(flagValue === 'CC'|| flagValue === 'BCC') {
-                button.click(); // 드롭다운 열기(참조, 숨은 참조)
+        // undo 작업을 별도의 함수로 분리
+        async function undoFieldInput() {
+            if (!window.lastInsertedField) return;
+            const field = await waitForField(window.lastInsertedField);
+            let currentValues = field.value ? field.value.split(",").map(s => s.trim()) : [];
+
+            if (window.lastInsertedUserList) {
+                //window.userList에서도 삭제된 값 반영
+                window.userList = window.userList.filter(user => !window.lastInsertedUserList.includes(user));
+                currentValues = currentValues.filter(user => !window.lastInsertedUserList.includes(user));
+
+                // 화면에서 삭제
+                const emailElements = document.querySelectorAll(window.lastInsertedField);
+                emailElements.forEach(emailElement => {
+                    const email = emailElement.innerText.trim();
+                    if (window.lastInsertedUserList.includes(email)) {
+                        emailElement.remove(); // 해당 이메일 삭제
+                    }
+                });
+
+                //lastInsertedUserList 초기화
+                window.lastInsertedUserList = [];
+                window.lastInsertedField = null;
+
+            }
+
+            field.value = currentValues.join(", ");
+            field.dispatchEvent(new Event("input", {bubbles: true}));
+            field.dispatchEvent(new KeyboardEvent("keydown", {bubbles: true, key: "Enter"}));
+            console.log("Undo operation completed:", field.value);
+
+        }//undoFieldInput
+
+        async function handleFieldInput(button, inputSelector, emailList, flagValue) {
+            removeAutoCompletePopup();
+            // flagValue가 'CC' 또는 'BCC'이고 emailList가 비어있지 않으면 버튼을 클릭
+            if ((flagValue === 'CC' || flagValue === 'BCC') && emailList.length > 0 && button) {
+                button.click();  // 수신자 목록을 표시하기 위한 버튼 클릭
             }
             try {
-                // 필드가 준비될 때까지 대기
-                const Field = await waitForField(inputSelector);
+                const field = await waitForField(inputSelector);
+                let currentValues = field.value ? field.value.split(",").map(s => s.trim()) : [];
 
-                // 기존 값 유지하면서 추가하기 위해 쉼표로 구분된 문자열로 변환
-                const existingValue = Field.value ? Field.value.split(",").map(s => s.trim()) : [];
-                const finalList = [...new Set([...existingValue, ...userList])].join(", "); // 기존값 + 새 값 병합 후 중복 제거
+                //이전 undo 기록이 남아 있지 않도록 확인
+                if (!window.lastInsertedUserList || window.lastInsertedUserList.length === 0) {
+                    window.lastInsertedUserList = [];
+                }
 
-                // 값 설정
-                Field.value = finalList;
-                // 값 변경 이벤트 트리거
-                Field.dispatchEvent(new Event("input", { bubbles: true }));
-                Field.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+                // emailList에서 이메일만 추출하여 추가 (중복 제거)
+                currentValues = [...new Set([...currentValues, ...emailList])];
 
-                // 값 설정 후 자동완성 팝업 제거
+                // 필드에 값 설정
+                field.value = currentValues.join(", ");
+                field.dispatchEvent(new Event("input", {bubbles: true}));
+                field.dispatchEvent(new KeyboardEvent("keydown", {bubbles: true, key: "Enter"}));
+
                 removeAutoCompletePopup();
-
-                console.log(`${flagValue} data inserted:`, finalList);
+                console.log(`${flagValue} data updated:`, field.value);
             } catch (error) {
-                console.error(`${flagValue} field not found!`, error);
+                console.error(`${flagValue} field error:`, error);
             }
-        }
-
-        // 수신자 필드 처리
-        if (flagValue == 'to') {
-            handleFieldInput('',
-                "input[aria-label='수신자']",
-                "TO"
-            );
-        }
-        // 참조인 필드 처리
-        else if (flagValue === 'cc') {
-            handleFieldInput(
-                document.querySelector("span[aria-label='참조 수신자 추가 ‪(Ctrl-Shift-C)‬']"),
-                "input[aria-label='참조 수신자']",
-                "CC"
-            );
-        }
-        // 숨은 참조 필드 처리
-        else if (flagValue === 'bcc') {
-            handleFieldInput(
-                document.querySelector("span[aria-label='숨은참조 수신자 추가 ‪(Ctrl-Shift-B)‬']"),
-                "input[aria-label='숨은참조 수신자']",
-                "BCC"
-            );
-        }
-    } catch (error) {
+        }//handleFieldInput
+    }catch (error) {
         console.error("Error inserting recipient data:", error);
     }
-}
+}//insertEmailData
 
 //조직도 팝업을 여는 함수
 function handleOpenOrgTree() {
@@ -142,15 +185,13 @@ function handleOpenOrgTree() {
             console.log("이전 팝업 창 닫음");
         });
     }
-    const popupWidth = 700;
-    const popupHeight = 500;
 
     // 새로운 팝업 창 생성
     chrome.windows.create({
         url: "http://localhost:8090", // IntelliJ에서 실행 중인 JSP의 URL
         type: 'popup', // 팝업 창으로 열기
-        width: 800, // 원하는 팝업 창 너비
-        height: 600, // 원하는 팝업 창 높이
+        width: 970, // 원하는 팝업 창 너비
+        height: 800, // 원하는 팝업 창 높이
         focused: true
     }, (window) => {
         if (chrome.runtime.lastError) {
@@ -159,6 +200,6 @@ function handleOpenOrgTree() {
         }
         console.log('JSP 팝업이 열렸습니다. Window ID:', window.id);
     });
-}
+}//handleOpenOrgTree
 
 

@@ -19,16 +19,23 @@
   "host_permissions": [
     "https://*.google.com/*",
     "https://mail.google.com/*",
-    "http://localhost:8090/*"
+    "http://localhost:8090/*",
+    "*://mail.google.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://mail.google.com/*"],
-      "js": ["src/content.js"]
-    }
+      "matches": [
+        "*://mail.google.com/*",
+        "https://mail.google.com/*",
+        "http://localhost:8090/*",
+        "https://*/*"
+      ],
+      "js": ["src/content.js"],
+      "all_frames": true
+    }   
   ],
   "action": {
     "default_icon": "icons/icon_48.png"
