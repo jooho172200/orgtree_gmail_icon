@@ -43,11 +43,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });//chrome.runtime.onMessage.addListener
 
 // Gmail DOM에 데이터를 삽입하는 함수
-function insertEmailData(data) {
+async function insertEmailData(data) {
     try {
-        // window.userList를 배열로 초기화
-        if (!Array.isArray(window.userList)) {
-            window.userList = [];
+        //window.userList를 배열로 초기화
+        // if (!Array.isArray(window.userList)) {
+        //     window.userList = [];
+
+        if (data.flagValue === 'undo') {
+            await undoFieldInput();
+            return;
+
         }
 
         // data의 각 flag(to, cc, bcc)에 대해 이메일 리스트 처리
@@ -111,38 +116,73 @@ function insertEmailData(data) {
             });
         }
 
-        // undo 작업을 별도의 함수로 분리
+        //undo 작업을 별도의 함수로 분리
+        // async function undoFieldInput() {
+        //     if (!window.lastInsertedField) return;
+        //     const field = await waitForField(window.lastInsertedField);
+        //     let currentValues = field.value ? field.value.split(",").map(s => s.trim()) : [];
+        //
+        //     if (window.lastInsertedUserList) {
+        //         //window.userList에서도 삭제된 값 반영
+        //         window.userList = window.userList.filter(user => !window.lastInsertedUserList.includes(user));
+        //         currentValues = currentValues.filter(user => !window.lastInsertedUserList.includes(user));
+        //
+        //         // 화면에서 삭제
+        //         const emailElements = document.querySelectorAll(window.lastInsertedField);
+        //         emailElements.forEach(emailElement => {
+        //             const email = emailElement.innerText.trim();
+        //             if (window.lastInsertedUserList.includes(email)) {
+        //                 emailElement.remove(); // 해당 이메일 삭제
+        //             }
+        //         });
+        //
+        //         //lastInsertedUserList 초기화
+        //         window.lastInsertedUserList = [];
+        //         window.lastInsertedField = null;
+        //
+        //     }
+        //
+        //     field.value = currentValues.join(", ");
+        //     field.dispatchEvent(new Event("input", {bubbles: true}));
+        //     field.dispatchEvent(new KeyboardEvent("keydown", {bubbles: true, key: "Enter"}));
+        //     console.log("Undo operation completed:", field.value);
+        //
+        // }//undoFieldInput
+
         async function undoFieldInput() {
-            if (!window.lastInsertedField) return;
-            const field = await waitForField(window.lastInsertedField);
-            let currentValues = field.value ? field.value.split(",").map(s => s.trim()) : [];
+            try {
+                const selectors = [
+                    "input[aria-label='수신자']",
+                    "input[aria-label='참조 수신자']",
+                    "input[aria-label='숨은참조 수신자']"
+                ];
 
-            if (window.lastInsertedUserList) {
-                //window.userList에서도 삭제된 값 반영
-                window.userList = window.userList.filter(user => !window.lastInsertedUserList.includes(user));
-                currentValues = currentValues.filter(user => !window.lastInsertedUserList.includes(user));
-
-                // 화면에서 삭제
-                const emailElements = document.querySelectorAll(window.lastInsertedField);
-                emailElements.forEach(emailElement => {
-                    const email = emailElement.innerText.trim();
-                    if (window.lastInsertedUserList.includes(email)) {
-                        emailElement.remove(); // 해당 이메일 삭제
+                for (const selector of selectors) {
+                    try {
+                        const field = await waitForField(selector);
+                        if (field) {
+                            field.value = "";
+                            field.dispatchEvent(new Event("input", { bubbles: true }));
+                            field.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+                            console.log(`Cleared field: ${selector}`);
+                        }
+                    } catch (error) {
+                        console.warn(`Field not found for selector: ${selector}`, error);
                     }
-                });
+                }
 
-                //lastInsertedUserList 초기화
+                // undo 후 상태 초기화
                 window.lastInsertedUserList = [];
                 window.lastInsertedField = null;
+                window.userList = [];
 
+                console.log("Undo operation: All fields cleared.");
+            } catch (error) {
+                console.error("Undo operation failed:", error);
             }
+        }
 
-            field.value = currentValues.join(", ");
-            field.dispatchEvent(new Event("input", {bubbles: true}));
-            field.dispatchEvent(new KeyboardEvent("keydown", {bubbles: true, key: "Enter"}));
-            console.log("Undo operation completed:", field.value);
 
-        }//undoFieldInput
 
         async function handleFieldInput(button, inputSelector, emailList, flagValue) {
             removeAutoCompletePopup();
@@ -177,6 +217,8 @@ function insertEmailData(data) {
         console.error("Error inserting recipient data:", error);
     }
 }//insertEmailData
+
+
 
 //조직도 팝업을 여는 함수
 function handleOpenOrgTree() {
