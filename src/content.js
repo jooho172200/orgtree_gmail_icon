@@ -49,10 +49,6 @@ function addOrgTreeButton(toolbar) {
         chrome.runtime.sendMessage({ action: 'openOrgTree' });
     });
 
-    //마우스 오버 시 버튼 스타일 변경
-    button.addEventListener('mouseover', () => button.classList.add('J-J5-Ji'));
-    button.addEventListener('mouseout', () => button.classList.remove('J-J5-Ji'));
-
     //버튼을 툴바에 추가
     toolbar.appendChild(button);
 }
@@ -61,10 +57,8 @@ window.addEventListener("sendDataToExtension", (event) => {
     const { action, data } = event.detail;
     // background.js로 메시지 전달
     chrome.runtime.sendMessage({ action, data }, (response) => {
-        if (chrome.runtime.lastError) {
-            console.error("Error sending message to background:", chrome.runtime.lastError.message);
-        } else {
-            console.log("Response from background.js:", response);
+        if (chrome.runtime.lastError|| !response) {
+            return;
         }
     });
 });
